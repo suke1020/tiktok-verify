@@ -2,20 +2,73 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Privacy Policy and Terms of Service</title>
-    <style>body { font-family: sans-serif; line-height: 1.6; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #333; }</style>
+    <title>TikTok OAuth Callback - Privacy Policy</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #333; }
+        .code-box {
+            background: #f0f8ff; border: 2px solid #4a90e2; padding: 20px;
+            border-radius: 8px; margin: 20px 0; word-break: break-all;
+        }
+        .code-value {
+            font-family: monospace; font-size: 18px; color: #d63384;
+            background: white; padding: 10px; border-radius: 4px;
+            border: 1px solid #ccc; margin-top: 10px;
+        }
+        .copy-btn {
+            background: #4a90e2; color: white; border: none; padding: 10px 20px;
+            border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 10px;
+        }
+        .copy-btn:hover { background: #357abd; }
+        .success { color: #28a745; font-weight: bold; }
+    </style>
 </head>
 <body>
+    <div id="oauth-result"></div>
+
     <h1>Privacy Policy & Terms of Service</h1>
     <p>Last updated: June 2026</p>
-    
+
     <h2>1. Privacy Policy</h2>
     <p>This application ("睡眠スピ") connects to the TikTok API solely for the purpose of automating video uploads and content management for the account owner. We do not collect, store, or share any personal user data with third parties. All authentication credentials and tokens are managed securely within the user's private environment.</p>
-    
+
     <h2>2. Terms of Service</h2>
     <p>This application is exclusively developed for personal use to streamline video workflows. By using this tool, you agree to comply with TikTok's Terms of Service and Community Guidelines. The developer is not responsible for any misuse or violations caused by the automated content creation.</p>
-    
+
     <h2>3. Contact</h2>
     <p>For any inquiries regarding this application, please contact the developer via the official application dashboard.</p>
+
+    <script>
+        // OAuth callback handler
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+        const state = params.get('state');
+        const error = params.get('error');
+
+        if (code) {
+            document.getElementById('oauth-result').innerHTML = `
+                <div class="code-box">
+                    <h2 class="success">✅ TikTok 認証成功</h2>
+                    <p><strong>以下の認可コードをコピーして、Pythonスクリプトのターミナルに貼り付けてください：</strong></p>
+                    <div class="code-value" id="code-display">${code}</div>
+                    <button class="copy-btn" onclick="copyCode()">📋 コードをコピー</button>
+                    <p style="margin-top:15px;font-size:14px;color:#666;">state: ${state || 'なし'}</p>
+                </div>
+            `;
+        } else if (error) {
+            document.getElementById('oauth-result').innerHTML = `
+                <div class="code-box" style="border-color:#dc3545;background:#f8d7da;">
+                    <h2 style="color:#dc3545;">❌ 認証エラー</h2>
+                    <p>${error}</p>
+                </div>
+            `;
+        }
+
+        function copyCode() {
+            const code = document.getElementById('code-display').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                alert('✅ コピーしました！Pythonターミナルに貼り付けてください。');
+            });
+        }
+    </script>
 </body>
 </html>
