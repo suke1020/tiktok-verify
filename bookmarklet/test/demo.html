@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>テスト用フォーム</title></head>
+<body>
+<h1>テスト用フォーム</h1>
+<form onsubmit="return false">
+  <p>ログイン: <input type="email" name="uid"> <input type="password" name="pwd"></p>
+  <p><label for="ln">姓</label><input id="ln" name="x_ln"> <label for="fn">名</label><input id="fn" name="x_fn"></p>
+  <p><input name="x_lk" placeholder="セイ"> <input name="x_fk" placeholder="メイ"></p>
+  <p><label>都道府県 <select name="pref"><option value="">選択</option><option value="13">東京都</option><option value="27">大阪府</option></select></label></p>
+  <p><label>郵便番号 <input name="zip"></label> <label>電話番号 <input name="tel"></label></p>
+  <p>性別: <label><input type="radio" name="sex" value="1" aria-label="性別">男性</label> <label><input type="radio" name="sex" value="2">女性</label></p>
+  <p><label>有効期限（月） <select name="m"><option>01</option><option>02</option><option>12</option></select></label>
+     <label>有効期限（年） <select name="y"><option>26</option><option>27</option><option>28</option></select></label></p>
+  <p><label>セキュリティコード <input name="Cvv"></label></p>
+</form>
+</body>
+</html>
