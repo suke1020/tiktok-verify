@@ -1,15 +1,12 @@
 // ==UserScript==
 // @name         JCS 自動入力
 // @description  スプレッドシートのプロフィールをジャンプキャラクターズストアの入力欄に入力する（送信はしない）
-// @version      0.1.0
+// @version      0.2.0
 // @match        https://jumpcs.shueisha.co.jp/*
-// @grant        GM.xmlHttpRequest
 // @grant        GM.getValue
 // @grant        GM.setValue
 // @grant        GM.deleteValue
 // @grant        GM.setClipboard
-// @connect      script.google.com
-// @connect      script.googleusercontent.com
 // @run-at       document-idle
 // @noframes
 // ==/UserScript==
@@ -56,6 +53,12 @@
     ['その他', '回答しない', '無回答', 'other'],
   ];
 
+  // スプレッドシートの列の並び（A〜Z）。コピーした1行をこの順で振り分ける
+  const COLS = ['ProfileName', 'LastName', 'FirstName', 'LastKana', 'FirstKana', 'LastRoman', 'FirstRoman',
+    'Email', 'Username', 'Password', 'State', 'City', 'Address', 'Address2', 'Address3', 'Tel', 'ZipCode',
+    'Birth_year', 'Birth_month', 'Birth_day', 'Sex', 'CardType', 'CardNumber', 'Month', 'Year', 'Cvv'];
+  const NEVER_FILL = ['ProfileName', 'Cvv']; // セキュリティコードは入力しない
+
   const ID = '__jcsfill';
   const hasGM = typeof GM !== 'undefined';
 
@@ -73,33 +76,44 @@
     try { localStorage.removeItem(ID + k); } catch (e) {}
   }
 
-  // ---------- 通信（GM.xmlHttpRequest はサイトの通信制限を受けない） ----------
-  function httpGet(url) {
-    if (hasGM && GM.xmlHttpRequest) {
-      return new Promise((resolve, reject) => {
-        GM.xmlHttpRequest({
-          method: 'GET',
-          url,
-          onload: (r) => resolve(r.responseText),
-          onerror: () => reject(new Error('通信エラー')),
-          ontimeout: () => reject(new Error('タイムアウト')),
-        });
-      });
+  // ---------- 貼り付けデータの読み取り ----------
+  // スプレッドシートからコピーした文字（タブ区切り、改行を含むセルは "…" 囲み）を行の配列にする
+  function parseTSV(text) {
+    const rows = [];
+    let row = [];
+    let cell = '';
+    let quoted = false;
+    text = text.replace(/\r\n?/g, '\n');
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (quoted) {
+        if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+        else if (c === '"') quoted = false;
+        else cell += c;
+      } else if (c === '"' && cell === '') quoted = true;
+      else if (c === '\t') { row.push(cell); cell = ''; }
+      else if (c === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; }
+      else cell += c;
     }
-    return fetch(url, { credentials: 'omit' }).then((r) => r.text());
+    row.push(cell);
+    rows.push(row);
+    return rows;
   }
 
-  async function api(params) {
-    const gasUrl = await getVal('gasUrl');
-    params.token = await getVal('token');
-    const q = new URLSearchParams(params).toString();
-    const text = await httpGet(gasUrl + '?' + q);
-    let j;
-    try { j = JSON.parse(text); } catch (e) {
-      throw new Error('シートの応答を読めません（Apps Script の公開設定を確認してください）');
-    }
-    if (!j.ok) throw new Error(j.error || '取得に失敗しました');
-    return j;
+  function toProfiles(text) {
+    return parseTSV(text.trim())
+      .filter((r) => r.some((v) => v.trim() !== ''))
+      .filter((r) => r[0].trim() !== 'ProfileName') // 見出し行ごとコピーした場合は除く
+      .map((r) => {
+        const d = {};
+        COLS.forEach((c, i) => { d[c] = (r[i] || '').trim(); });
+        if (!d.ProfileName) d.ProfileName = (d.LastName + ' ' + d.FirstName).trim() || '(名前なし)';
+        return d;
+      });
+  }
+
+  async function getProfiles() {
+    try { return JSON.parse((await getVal('profiles')) || '[]'); } catch (e) { return []; }
   }
 
   // ---------- 入力 ----------
@@ -208,7 +222,7 @@
     const res = { done: [], failed: [], notFound: [] };
     const usedRadio = new Set();
     for (const col of Object.keys(data)) {
-      if (col === 'ProfileName') continue;
+      if (NEVER_FILL.includes(col)) continue;
       const value = convert(col, data[col]);
       if (value === '') continue;
       const targets = findTargets(col, els);
@@ -303,7 +317,7 @@
       const r = document.createElement('div');
       r.className = 'row';
       r.appendChild(btn('調査', doSurvey));
-      r.appendChild(btn('設定', setup));
+      r.appendChild(btn('消去', clearData));
       r.appendChild(btn('閉じる', () => panel.classList.remove('open')));
       btns.appendChild(r);
     }
@@ -318,16 +332,30 @@
     }
   }
 
-  async function setup() {
-    const gasUrl = prompt('Apps Script の URL（…/exec）', await getVal('gasUrl'));
-    if (gasUrl == null) return;
-    if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(gasUrl.trim())) { alert('URL は https://script.google.com/…/exec の形式で入力してください'); return; }
-    const token = prompt('合言葉（Code.gs の TOKEN）', await getVal('token'));
-    if (token == null) return;
-    await setVal('gasUrl', gasUrl.trim());
-    await setVal('token', token.trim());
-    await delVal('row');
-    start();
+  function pasteScreen() {
+    render(`<b>スプレッドシートの行を貼り付け</b><br>
+      <small>Google スプレッドシートアプリで行番号をタップして行を選択 →「コピー」→ 下の枠を長押しして「ペースト」。
+      複数行をまとめて貼ると、一覧から選べます。</small>
+      <textarea class="paste" rows="4" style="width:100%;margin-top:8px;font-size:16px;border:1px solid #999;border-radius:8px;padding:8px"></textarea>`,
+    [btn('読み込む', async () => {
+      const list = toProfiles(root.querySelector('.paste').value);
+      if (!list.length) { alert('データがありません。行をコピーしてから貼り付けてください。'); return; }
+      await setVal('profiles', JSON.stringify(list));
+      if (list.length === 1) return useProfile(0);
+      chooseScreen(list);
+    }, 'primary')]);
+  }
+
+  function chooseScreen(list) {
+    render(`<b>入力するプロフィールを選択</b>`, list.map((p, i) => btn(p.ProfileName, () => useProfile(i)))
+      .concat([btn('貼り直す', pasteScreen)]));
+  }
+
+  async function useProfile(i) {
+    const list = await getProfiles();
+    if (!list[i]) return pasteScreen();
+    await setVal('current', String(i));
+    showResult(list[i].ProfileName, fill(list[i]));
   }
 
   function showResult(name, res) {
@@ -338,35 +366,25 @@
     if (res.failed.length) html += `<br>❌ 選択肢が合わず入力できず: ${esc(res.failed.join(', '))}`;
     if (res.notFound.length) html += `<br><small>このページに無い列: ${esc(res.notFound.join(', '))}</small>`;
     html += '<br><small>内容を確認し、送信・reCAPTCHA はご自身で行ってください。セキュリティコードは手入力です。</small>';
-    render(html, [btn('プロフィールを変更', async () => { await delVal('row'); start(); })]);
+    render(html, [btn('プロフィールを変更', async () => {
+      const list = await getProfiles();
+      if (list.length > 1) chooseScreen(list); else pasteScreen();
+    })]);
   }
 
-  async function useRow(row) {
-    render('読み込み中…', [], false);
-    try {
-      const j = await api({ action: 'get', row });
-      await setVal('row', String(row));
-      showResult(j.data.ProfileName || row + '行目', fill(j.data));
-    } catch (e) {
-      render('⚠️ ' + esc(e.message));
-    }
+  async function clearData() {
+    if (!confirm('記憶しているプロフィールをすべて消去しますか？')) return;
+    await delVal('profiles');
+    await delVal('current');
+    pasteScreen();
   }
 
   async function start() {
-    if (!(await getVal('gasUrl'))) {
-      return render('初回設定が必要です。Apps Script の URL と合言葉を入力してください。', [btn('設定する', setup, 'primary')]);
-    }
-    const row = await getVal('row');
-    if (row) return useRow(row);
-    render('プロフィール一覧を読み込み中…', [], false);
-    try {
-      const j = await api({ action: 'list' });
-      if (!j.profiles.length) return render('シートにデータがありません。');
-      render('<b>入力するプロフィールを選択</b>', j.profiles.map((p) =>
-        btn(`${p.name}（${p.row}行目）`, () => useRow(p.row))));
-    } catch (e) {
-      render('⚠️ ' + esc(e.message));
-    }
+    const list = await getProfiles();
+    const cur = await getVal('current');
+    if (list.length && cur !== '' && list[cur]) return useProfile(Number(cur));
+    if (list.length > 1) return chooseScreen(list);
+    pasteScreen();
   }
 
   root.querySelector('.fab').onclick = start;
