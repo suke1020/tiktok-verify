@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         JCS 自動入力
 // @description  スプレッドシートのプロフィールをジャンプキャラクターズストアの入力欄に入力する（送信はしない）
-// @version      0.2.0
+// @version      0.2.1
 // @match        https://jumpcs.shueisha.co.jp/*
 // @grant        GM.getValue
 // @grant        GM.setValue
 // @grant        GM.deleteValue
 // @grant        GM.setClipboard
 // @run-at       document-idle
+// @inject-into  content
 // @noframes
 // ==/UserScript==
 
@@ -293,7 +294,11 @@
     </style>
     <button type="button" class="fab">自動入力</button>
     <div class="panel"><div class="body"></div><div class="btns"></div></div>`;
-  document.body.appendChild(root);
+  // body 直下だとサイトの CSS（transform 等）でボタンが画面外に出ることがあるため html 直下に置く。
+  // サイトの処理で消された場合は付け直す。
+  const mount = () => { if (!root.isConnected) document.documentElement.appendChild(root); };
+  mount();
+  setInterval(mount, 1000);
 
   const panel = root.querySelector('.panel');
   const body = root.querySelector('.body');
