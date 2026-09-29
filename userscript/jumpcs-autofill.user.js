@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         JCS 自動入力
 // @description  スプレッドシートのプロフィールをジャンプキャラクターズストアの入力欄に入力する（送信はしない）
-// @version      0.3.0
+// @version      0.3.1
 // @match        https://jumpcs.shueisha.co.jp/*
 // @grant        GM.getValue
 // @grant        GM.setValue
@@ -283,12 +283,12 @@
     <style>
       #${ID} { all: initial; }
       #${ID} * { box-sizing: border-box; font: 15px/1.5 -apple-system, "Hiragino Sans", sans-serif; }
-      #${ID} .fab { position: fixed; right: 12px; bottom: 16px; z-index: 2147483646; padding: 12px 16px;
+      #${ID} .fab { position: fixed; left: 8px; top: 40%; z-index: 2147483646; padding: 12px 14px;
         border: 0; border-radius: 24px; background: #1565c0; color: #fff; font-weight: 700;
         box-shadow: 0 3px 10px rgba(0,0,0,.3); }
-      #${ID} .panel { position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 2147483647; display: none;
+      #${ID} .panel { position: fixed; left: 8px; right: 8px; top: calc(env(safe-area-inset-top) + 8px); z-index: 2147483647; display: none;
         background: #fff; color: #222; border: 2px solid #1565c0; border-radius: 12px; padding: 12px;
-        box-shadow: 0 4px 20px rgba(0,0,0,.3); max-height: 65vh; overflow: auto; text-align: left; }
+        box-shadow: 0 4px 20px rgba(0,0,0,.3); max-height: 60vh; overflow: auto; text-align: left; }
       #${ID} .panel.open { display: block; }
       #${ID} button.b { display: block; width: 100%; margin: 6px 0; padding: 12px; font-size: 16px;
         border-radius: 8px; border: 1px solid #1565c0; background: #fff; color: #1565c0; }
