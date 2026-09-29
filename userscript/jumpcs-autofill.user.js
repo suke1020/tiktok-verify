@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         JCS 自動入力
 // @description  スプレッドシートのプロフィールをジャンプキャラクターズストアの入力欄に入力する（送信はしない）
-// @version      0.2.1
+// @version      0.3.0
 // @match        https://jumpcs.shueisha.co.jp/*
 // @grant        GM.getValue
 // @grant        GM.setValue
@@ -14,6 +14,9 @@
 
 (function () {
   'use strict';
+
+  // ブックマークレットとして2回目以降に実行されたときは、パネルを開くだけ
+  if (window.__jcsfillStart && document.getElementById('__jcsfill')) { window.__jcsfillStart(); return; }
 
   // ===== 列 → 入力欄の対応表 =====
   //   names : 入力欄の name / id（完全一致）。複数あれば全部に入力（確認用欄など）
@@ -64,17 +67,19 @@
   const hasGM = typeof GM !== 'undefined';
 
   // ---------- 保存 ----------
+  // Userscripts では拡張機能の保存領域（この iPhone の中）、
+  // ブックマークレットではタブを閉じると消える sessionStorage を使う
   async function getVal(k) {
     if (hasGM && GM.getValue) return GM.getValue(k, '');
-    try { return localStorage.getItem(ID + k) || ''; } catch (e) { return ''; }
+    try { return sessionStorage.getItem(ID + k) || ''; } catch (e) { return ''; }
   }
   async function setVal(k, v) {
     if (hasGM && GM.setValue) return GM.setValue(k, v);
-    try { localStorage.setItem(ID + k, v); } catch (e) {}
+    try { sessionStorage.setItem(ID + k, v); } catch (e) {}
   }
   async function delVal(k) {
     if (hasGM && GM.deleteValue) return GM.deleteValue(k);
-    try { localStorage.removeItem(ID + k); } catch (e) {}
+    try { sessionStorage.removeItem(ID + k); } catch (e) {}
   }
 
   // ---------- 貼り付けデータの読み取り ----------
@@ -393,4 +398,6 @@
   }
 
   root.querySelector('.fab').onclick = start;
+  window.__jcsfillStart = start;
+  if (!hasGM) start(); // ブックマークレットとして実行されたときはすぐパネルを開く
 })();

@@ -42,3 +42,19 @@ W CardNumber  X Month  Y Year  Z Cvv（入力しない）
 
 パネルの「調査」を押すと、そのページの入力欄一覧（入力値は含まない）がコピーされます。
 それを開発者に送る → `MAP` の `names` に追加 → スクリプトを上書き、で対応します。
+
+## Userscripts が動かないとき
+
+- `hello-test.user.js` を Userscripts に入れて対象サイトを開き、上部に赤い帯が出るか確認（出なければ Userscripts の設定の問題）
+- 代わりにブックマークレットでも同じ機能が使えます（`bookmarklet.txt`）:
+  1. Safari で適当なページをブックマークに追加（名前「自動入力」）
+  2. ブックマーク編集で URL を `bookmarklet.txt` の中身（`javascript:` から始まる1行）に置き換え
+  3. 対象ページでアドレスバーをタップ →「自動入力」ブックマークを選ぶ
+  - ブックマークレットでは貼り付けたデータはタブを閉じると消えます
+
+`bookmarklet.txt` の作り直し（スクリプト修正後）:
+
+```sh
+npx terser userscript/jumpcs-autofill.user.js -c -m --ecma 2020 -o /tmp/min.js
+node -e "const c=require('fs').readFileSync('/tmp/min.js','utf8').trim().replace(/;$/,'');require('fs').writeFileSync('userscript/bookmarklet.txt','javascript:'+encodeURIComponent(c)+'\n')"
+```
